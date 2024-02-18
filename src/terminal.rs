@@ -57,7 +57,7 @@ impl Terminal {
 
     #[must_use]
     pub fn size(&self) -> (u16, u16) {
-        (self.size.height, self.size.width)
+        (self.size.width, self.size.height)
     }
 }
 
@@ -109,8 +109,8 @@ impl Default for Terminal {
     fn default() -> Self {
         let (mut width, mut height) = terminal::size().expect("fail to get terminal size");
         if cfg!(target_os = "windows") {
-            height -= 1;
             width -= 1;
+            height -= 1;
         }
         terminal::enable_raw_mode().expect("fail to enable raw mode");
         Terminal {
