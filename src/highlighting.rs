@@ -19,16 +19,6 @@ pub enum HighlightType {
     SecondaryKeywords,
 }
 
-// impl From<HighlightType> for Color {
-//     fn from(value: HighlightType) -> Self {
-//         match value {
-//             HighlightType::None => Color::White,
-//             HighlightType::Number => Color::Red,
-//             HighlightType::Match => Color::Yellow,
-//         }
-//     }
-// }
-
 impl From<&HighlightType> for Color {
     fn from(value: &HighlightType) -> Self {
         match value {

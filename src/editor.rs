@@ -1,24 +1,3 @@
-// #![warn(clippy::all, clippy::pedantic, clippy::restriction)]
-// #![allow(
-//     clippy::missing_docs_in_private_items,
-//     clippy::missing_errors_doc,
-//     clippy::missing_panics_doc,
-//     clippy::missing_safety_doc,
-//     clippy::implicit_return,
-//     clippy::shadow_reuse,
-//     clippy::print_stdout,
-//     clippy::wildcard_enum_match_arm,
-//     clippy::else_if_without_else,
-//     clippy::std_instead_of_core,
-//     clippy::question_mark,
-//     clippy::question_mark_used,
-//     clippy::min_ident_chars,
-//     clippy::inline_always,
-//     clippy::missing_inline_in_public_items,
-//     clippy::uninlined_format_args,
-//     clippy::print_stderr
-// )]
-
 use std::{
     cmp, env,
     fmt::Display,
@@ -85,15 +64,6 @@ struct StatusMessage {
     time: Instant,
     text: String,
 }
-
-// impl Default for StatusMessage {
-//     fn default() -> Self {
-//         Self {
-//             time: Instant::now(),
-//             text: String::new(),
-//         }
-//     }
-// }
 
 impl<T> From<T> for StatusMessage
 where
@@ -184,11 +154,6 @@ impl Editor {
     pub fn terminal_height(&self) -> usize {
         self.terminal.height() as usize
     }
-
-    // #[must_use]
-    // pub fn document_length(&self) -> usize {
-    //     self.document.len()
-    // }
 }
 
 impl Editor {
@@ -255,13 +220,10 @@ impl Editor {
                     self.move_cursor(KeyCode::Right);
                 }
             }
-            _ => (), //println!("{:?}\r", key),
+            _ => (),
         }
-
         self.reset_quit();
         self.scroll();
-
-        // Ok(())
     }
 
     /// return whether success to quit
@@ -389,7 +351,6 @@ impl Editor {
         let end = self.offset.x.saturating_add(self.terminal_width());
         let row = row.render(start, end);
         println!("{}\r", row);
-        // io::stdout().flush().unwrap();
     }
 
     fn draw_rows(&self) {
