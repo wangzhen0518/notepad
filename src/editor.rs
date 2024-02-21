@@ -122,6 +122,7 @@ pub struct Editor {
     document: Document,
     status_message: StatusMessage,
     quit_times: u8,
+    highlighted_word: Option<String>,
 }
 
 impl Default for Editor {
@@ -148,6 +149,7 @@ impl Default for Editor {
             document,
             status_message: StatusMessage::from(initial_status),
             quit_times: QUIT_TIMES,
+            highlighted_word: None,
         }
     }
 }
@@ -299,7 +301,7 @@ impl Editor {
             self.cursor_position = old_position;
             self.scroll();
         }
-        self.document.highlight(None);
+        self.highlighted_word = None;
     }
 
     fn save(&mut self) {
@@ -361,13 +363,17 @@ impl Editor {
     //! draw functions
 
     /// # Errors
-    fn refresh_screen(&self) -> Result<(), io::Error> {
+    fn refresh_screen(&mut self) -> Result<(), io::Error> {
         Terminal::cursor_hide();
         Terminal::cursor_set_position(&Position::default());
         if self.should_quit {
             Terminal::clear_screen();
             println!("Goodbye.\r");
         } else {
+            self.document.highlight(
+                self.highlighted_word.as_ref(),
+                Some(self.offset.y().saturating_add(self.terminal_height())),
+            );
             self.draw_rows();
             self.draw_status_bar();
             self.draw_message_bar();
@@ -566,5 +572,5 @@ fn increase_search(editor: &mut Editor, key: KeyEvent, query: &str) {
     } else if moved {
         editor.move_cursor(KeyCode::Left);
     }
-    editor.document.highlight(Some(query));
+    editor.highlighted_word = Some(query.to_string());
 }

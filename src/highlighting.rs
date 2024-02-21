@@ -1,5 +1,10 @@
 use crossterm::style::Color;
 
+use crate::constants::{
+    CHARACTER_COLOR, COMMENT_COLOR, MATCH_COLOR, NONE_COLOR, NUMBER_COLOR, PRIMARY_KEYWORDS_COLOR,
+    SECONDARY_KEYWORDS_COLOR, STRING_COLOR,
+};
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum HighlightType {
     #[default]
@@ -9,6 +14,9 @@ pub enum HighlightType {
     String,
     Character,
     Comment,
+    MultilineComment,
+    PrimaryKeywords,
+    SecondaryKeywords,
 }
 
 // impl From<HighlightType> for Color {
@@ -24,24 +32,14 @@ pub enum HighlightType {
 impl From<&HighlightType> for Color {
     fn from(value: &HighlightType) -> Self {
         match value {
-            HighlightType::None => Color::White,
-            HighlightType::Number => Color::Red,
-            HighlightType::Match => Color::Blue,
-            HighlightType::String => Color::Rgb {
-                r: 211,
-                g: 54,
-                b: 130,
-            },
-            HighlightType::Character => Color::Rgb {
-                r: 108,
-                g: 113,
-                b: 196,
-            },
-            HighlightType::Comment => Color::Rgb {
-                r: 133,
-                g: 153,
-                b: 0,
-            },
+            HighlightType::None => NONE_COLOR,
+            HighlightType::Number => NUMBER_COLOR,
+            HighlightType::Match => MATCH_COLOR,
+            HighlightType::String => STRING_COLOR,
+            HighlightType::Character => CHARACTER_COLOR,
+            HighlightType::Comment | HighlightType::MultilineComment => COMMENT_COLOR,
+            HighlightType::PrimaryKeywords => PRIMARY_KEYWORDS_COLOR,
+            HighlightType::SecondaryKeywords => SECONDARY_KEYWORDS_COLOR,
         }
     }
 }

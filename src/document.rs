@@ -18,7 +18,7 @@
 // )]
 
 use std::{
-    fs,
+    cmp, fs,
     io::{self, Error, Write},
     ops::Index,
     path,
@@ -27,7 +27,7 @@ use std::{
 use crate::{
     editor::{Position, SearchDirection},
     filetype::FileType,
-    row::Row,
+    row::{self, Row},
 };
 
 #[derive(Debug, Default)]
@@ -41,22 +41,24 @@ pub struct Document {
 impl Document {
     #[inline]
     pub fn open(filename: &str) -> Result<Self, Error> {
-        let filename = path::Path::new(filename);
+        // let filename = path::Path::new(filename);
         let contents = fs::read_to_string(filename)?;
-        let filename = filename
-            .file_name()
-            .map(|s| s.to_string_lossy().into_owned());
-        let filetype = FileType::from(filename.clone().unwrap_or_default());
+        // let filename = filename
+        //     .file_name()
+        //     .map(|s| s.to_string_lossy().into_owned());
+        let filetype = FileType::from(filename);
+        // let mut start_with_comment = false;
+        let mut rows = Vec::new();
+        for value in contents.lines() {
+            // let mut row = Row::from(value);
+            // start_with_comment =
+            //     row.highlight(filetype.highlightling_options(), None, start_with_comment);
+            // rows.push(row);
+            rows.push(Row::from(value));
+        }
         Ok(Self {
-            filename,
-            rows: contents
-                .lines()
-                .map(|s| {
-                    let mut row = Row::from(s);
-                    row.highlight(filetype.highlightling_options(), None);
-                    row
-                })
-                .collect(),
+            filename: Some(filename.to_string()),
+            rows,
             filetype,
             dirty: false,
         })
@@ -71,11 +73,6 @@ impl Document {
     #[must_use]
     #[inline]
     pub fn row_length(&self, index: usize) -> usize {
-        // if let Some(row) = self.row(index) {
-        //     row.len()
-        // } else {
-        //     0
-        // }
         self.rows.get(index).map(Row::len).unwrap_or_default()
     }
 
@@ -127,15 +124,14 @@ impl Document {
             self.rows.push(Row::default());
         } else {
             // split current line to two part and create a new line
-
             #[allow(clippy::indexing_slicing)]
             let current_row = &mut self.rows[at.y()];
-            let mut next_row = current_row.split(at.x());
-            current_row.highlight(self.filetype.highlightling_options(), None);
-            next_row.highlight(self.filetype.highlightling_options(), None);
+            let next_row = current_row.split(at.x());
             #[allow(clippy::arithmetic_side_effects)]
             self.rows.insert(at.y() + 1, next_row);
         }
+        // self.highlight(None);
+        self.unhighlight_rows(at.y());
     }
 
     pub fn insert(&mut self, at: &Position, c: char) {
@@ -147,14 +143,14 @@ impl Document {
         if at.y() == self.len() {
             let mut row = Row::default();
             row.insert(0, c);
-            row.highlight(self.filetype.highlightling_options(), None);
             self.rows.push(row);
         } else {
             #[allow(clippy::indexing_slicing)]
             let row = &mut self.rows[at.y()];
             row.insert(at.x(), c);
-            row.highlight(self.filetype.highlightling_options(), None);
         }
+        // self.highlight(None);
+        self.unhighlight_rows(at.y());
     }
 
     pub fn delete(&mut self, at: &Position) {
@@ -170,13 +166,13 @@ impl Document {
             #[allow(clippy::indexing_slicing)]
             let row = &mut self.rows[at.y()];
             row.append(&next_row);
-            row.highlight(self.filetype.highlightling_options(), None);
         } else {
             #[allow(clippy::indexing_slicing)]
             let row = &mut self.rows[at.y()];
             row.delete(at.x());
-            row.highlight(self.filetype.highlightling_options(), None);
         }
+        // self.highlight(None);
+        self.unhighlight_rows(at.y());
     }
 
     pub fn save(&mut self) -> Result<(), io::Error> {
@@ -184,11 +180,16 @@ impl Document {
         if let Some(filename) = &self.filename {
             let mut file = fs::File::create(filename)?;
             // for row in self.rows.iter_mut().filter(|r| r.is_modified()) {
+            // let mut start_with_comment = false;
             self.filetype = FileType::from(filename);
             for row in &mut self.rows {
                 file.write_all(row.as_bytes())?;
                 file.write_all(b"\n")?;
-                row.highlight(self.filetype.highlightling_options(), None);
+                // start_with_comment = row.highlight(
+                //     self.filetype.highlightling_options(),
+                //     None,
+                //     start_with_comment,
+                // );
             }
             self.dirty = false;
         }
@@ -223,9 +224,24 @@ impl Document {
         None
     }
 
-    pub fn highlight(&mut self, word: Option<&str>) {
-        for row in &mut self.rows {
-            row.highlight(self.filetype.highlightling_options(), word);
+    pub fn highlight(&mut self, word: Option<&String>, until: Option<usize>) {
+        let mut start_with_comment = false;
+        let until = until.map_or(self.len(), |times| {
+            cmp::min(times.saturating_add(1), self.len())
+        });
+        for row in &mut self.rows[..until] {
+            start_with_comment = row.highlight(
+                self.filetype.highlightling_options(),
+                word,
+                start_with_comment,
+            );
+        }
+    }
+
+    fn unhighlight_rows(&mut self, start: usize) {
+        let start = start.saturating_sub(1);
+        for row in self.rows.iter_mut().skip(start) {
+            row.reset_highlighted();
         }
     }
 }

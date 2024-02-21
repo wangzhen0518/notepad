@@ -17,7 +17,7 @@
 //     clippy::missing_inline_in_public_items
 // )]
 
-use std::{cmp, collections::HashSet};
+use std::{cmp, collections::HashSet, iter};
 
 use crossterm::style::{self, Stylize};
 use unicode_segmentation::UnicodeSegmentation;
@@ -34,6 +34,7 @@ pub struct Row {
     highlighting: Vec<highlighting::HighlightType>,
     len: usize,
     modified: bool,
+    highlighted: bool,
 }
 
 impl<T> From<T> for Row
@@ -48,6 +49,7 @@ where
             highlighting: Vec::new(),
             len,
             modified: false,
+            highlighted: false,
         }
     }
 }
@@ -85,6 +87,16 @@ impl Row {
     #[inline]
     pub fn reset_modified(&mut self) {
         self.modified = false;
+    }
+
+    #[inline]
+    pub fn set_highlighted(&mut self) {
+        self.highlighted = true;
+    }
+
+    #[inline]
+    pub fn reset_highlighted(&mut self) {
+        self.highlighted = false;
     }
 
     #[must_use]
@@ -159,6 +171,7 @@ impl Row {
                 highlighting: Vec::new(),
                 len: new_len,
                 modified: true,
+                highlighted: false,
             }
         };
         new_row.set_modified();
@@ -239,13 +252,47 @@ impl Row {
         None
     }
 
-    pub fn highlight(&mut self, opts: &HighlightingOptions, word: Option<&str>) {
+    pub fn highlight(
+        &mut self,
+        opts: &HighlightingOptions,
+        word: Option<&String>,
+        start_with_comment: bool,
+    ) -> bool {
+        if self.highlighted && word.is_none() {
+            if let Some(hl_type) = self.highlighting.last() {
+                return *hl_type == HighlightType::MultilineComment
+                    && self.content.len() > 1
+                    && &self.content[self.content.len().saturating_sub(2)..] == "*/";
+            }
+        }
+
         self.highlighting.clear();
         let chars: Vec<char> = self.content.chars().collect();
         let mut index = 0;
+        let mut in_ml_comment = start_with_comment;
+        if in_ml_comment {
+            let closing_index = self
+                .content
+                .find("*/")
+                .map_or(chars.len(), |cl_idx| cl_idx + 2);
+            self.highlighting.append(
+                &mut iter::repeat(HighlightType::MultilineComment)
+                    .take(closing_index)
+                    .collect(),
+            );
+            index = closing_index;
+        }
+
         while let Some(c) = chars.get(index) {
+            if self.highlight_multiline_comment(&mut index, opts, *c, &chars) {
+                in_ml_comment = true;
+                continue;
+            }
+            in_ml_comment = false;
             if self.highlight_char(&mut index, opts, *c, &chars)
                 || self.highlight_comment(&mut index, opts, *c, &chars)
+                || self.highlight_primary_keywords(&mut index, opts, &chars)
+                || self.highlight_secondary_keywords(&mut index, opts, &chars)
                 || self.highlight_string(&mut index, opts, *c, &chars)
                 || self.highlight_number(&mut index, opts, *c, &chars)
             {
@@ -255,11 +302,14 @@ impl Row {
             index += 1;
         }
         self.highlight_match(word);
+        self.highlighted = true;
+
+        in_ml_comment && &self.content[self.content.len().saturating_sub(2)..] != "*/"
     }
 }
 
 impl Row {
-    fn highlight_match(&mut self, word: Option<&str>) {
+    fn highlight_match(&mut self, word: Option<&String>) {
         if let Some(word) = word {
             if word.is_empty() {
                 return;
@@ -331,6 +381,33 @@ impl Row {
         false
     }
 
+    fn highlight_multiline_comment(
+        &mut self,
+        index: &mut usize,
+        opts: &HighlightingOptions,
+        c: char,
+        chars: &[char],
+    ) -> bool {
+        if opts.comments() && c == '/' && *index < chars.len() {
+            if let Some(next_char) = chars.get(index.saturating_add(1)) {
+                if *next_char == '*' {
+                    let closing_index =
+                        if let Some(closing_index) = self.content[*index + 2..].find("*/") {
+                            *index + closing_index + 4
+                        } else {
+                            chars.len()
+                        };
+                    for _ in *index..closing_index {
+                        self.highlighting.push(HighlightType::MultilineComment);
+                        *index += 1;
+                    }
+                    return true;
+                }
+            };
+        }
+        false
+    }
+
     fn highlight_string(
         &mut self,
         index: &mut usize,
@@ -366,7 +443,7 @@ impl Row {
         if opts.numbers() && c.is_ascii_digit() {
             if *index != 0 {
                 let prev_char: char = chars[*index - 1];
-                if !(prev_char.is_ascii_punctuation() || prev_char.is_whitespace()) {
+                if !is_separator(prev_char) {
                     return false;
                 }
             }
@@ -384,4 +461,92 @@ impl Row {
         }
         false
     }
+
+    fn hightlight_str(
+        &mut self,
+        index: &mut usize,
+        substring: &str,
+        chars: &[char],
+        hl_type: &HighlightType,
+    ) -> bool {
+        if substring.is_empty() {
+            return false;
+        }
+
+        for (substr_index, c) in substring.chars().enumerate() {
+            if let Some(next_char) = chars.get(*index + substr_index) {
+                if *next_char != c {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+        self.highlighting.append(
+            &mut iter::repeat(hl_type.clone())
+                .take(substring.len())
+                .collect(),
+        );
+        *index += substring.len();
+        true
+    }
+
+    fn highlight_keywords(
+        &mut self,
+        index: &mut usize,
+        chars: &[char],
+        keywords: &[&'static str],
+        hl_type: &HighlightType,
+    ) -> bool {
+        if *index > 0 {
+            let prev_char = chars[*index - 1];
+            if !is_separator(prev_char) {
+                return false;
+            }
+        }
+        for word in keywords.iter() {
+            let next_index = *index + word.len();
+            if let Some(&next_char) = chars.get(next_index) {
+                if !is_separator(next_char) {
+                    continue;
+                }
+            }
+            if self.hightlight_str(index, word, chars, hl_type) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn highlight_primary_keywords(
+        &mut self,
+        index: &mut usize,
+        opts: &HighlightingOptions,
+        chars: &[char],
+    ) -> bool {
+        self.highlight_keywords(
+            index,
+            chars,
+            opts.primary_keywords(),
+            &HighlightType::PrimaryKeywords,
+        )
+    }
+
+    fn highlight_secondary_keywords(
+        &mut self,
+        index: &mut usize,
+        opts: &HighlightingOptions,
+        chars: &[char],
+    ) -> bool {
+        self.highlight_keywords(
+            index,
+            chars,
+            opts.secondary_keywords(),
+            &HighlightType::SecondaryKeywords,
+        )
+    }
+}
+
+fn is_separator(c: char) -> bool {
+    c.is_ascii_punctuation() || c.is_whitespace()
 }
