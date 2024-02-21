@@ -1,23 +1,4 @@
-// #![warn(clippy::all, clippy::pedantic, clippy::restriction)]
-// #![allow(
-//     clippy::missing_docs_in_private_items,
-//     clippy::missing_errors_doc,
-//     clippy::missing_panics_doc,
-//     clippy::missing_safety_doc,
-//     clippy::implicit_return,
-//     clippy::shadow_reuse,
-//     clippy::print_stdout,
-//     clippy::wildcard_enum_match_arm,
-//     clippy::else_if_without_else,
-//     clippy::std_instead_of_core,
-//     clippy::question_mark,
-//     clippy::question_mark_used,
-//     clippy::min_ident_chars,
-//     clippy::inline_always,
-//     clippy::missing_inline_in_public_items
-// )]
-
-use std::{cmp, collections::HashSet, iter};
+use std::{cmp, iter};
 
 use crossterm::style::{self, Stylize};
 use unicode_segmentation::UnicodeSegmentation;
@@ -53,12 +34,6 @@ where
         }
     }
 }
-
-// impl Row {
-//     fn update_len(&mut self) {
-//         self.len = self.content.graphemes(true).count();
-//     }
-// }
 
 impl Row {
     #[must_use]
@@ -316,10 +291,8 @@ impl Row {
             }
 
             let mut index = 0;
-            // let mut matches = HashSet::new();
             let word_len = word.graphemes(true).count();
             while let Some(search_match) = self.find(word, index, SearchDirection::Forward) {
-                // matches.insert(search_match);
                 if let Some(next_index) = search_match.checked_add(word_len) {
                     for i in search_match..next_index {
                         self.highlighting[i] = HighlightType::Match;

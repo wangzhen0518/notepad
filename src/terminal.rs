@@ -1,22 +1,3 @@
-// #![warn(clippy::all, clippy::pedantic, clippy::restriction)]
-// #![allow(
-//     clippy::missing_docs_in_private_items,
-//     clippy::missing_errors_doc,
-//     clippy::missing_panics_doc,
-//     clippy::missing_safety_doc,
-//     clippy::implicit_return,
-//     clippy::shadow_reuse,
-//     clippy::print_stdout,
-//     clippy::wildcard_enum_match_arm,
-//     clippy::else_if_without_else,
-//     clippy::std_instead_of_core,
-//     clippy::question_mark,
-//     clippy::question_mark_used,
-//     clippy::min_ident_chars,
-//     clippy::inline_always,
-//     clippy::missing_inline_in_public_items
-// )]
-
 use std::io::{self, Write};
 
 use crossterm::{
@@ -27,40 +8,9 @@ use crossterm::{
 
 use crate::editor::Position;
 
-// use crate::Shape;
-
-// #[derive(Debug, Default, Clone)]
-// struct Size {
-//     width: u16,
-//     height: u16,
-// }
-
-// impl Size {
-//     #[must_use]
-//     fn new(width: u16, height: u16) -> Size {
-//         Self { width, height }
-//     }
-// }
-
-// impl Shape for Size {
-//     fn first(&self) -> u16 {
-//         self.width
-//     }
-
-//     fn second(&self) -> u16 {
-//         self.height
-//     }
-// }
-
-// impl From<WindowSize> for Size {
-//     fn from(value: WindowSize) -> Self {
-//         Size::new(value.columns, value.rows)
-//     }
-// }
-
 #[derive(Debug)]
 pub struct Terminal {
-    // size: Size, // _stdout: io::Stdout,
+    // size: Size,
 }
 
 impl Terminal {

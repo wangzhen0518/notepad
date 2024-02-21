@@ -1,33 +1,13 @@
-// #![warn(clippy::all, clippy::pedantic, clippy::restriction)]
-// #![allow(
-//     clippy::missing_docs_in_private_items,
-//     clippy::missing_errors_doc,
-//     clippy::missing_panics_doc,
-//     clippy::missing_safety_doc,
-//     clippy::implicit_return,
-//     clippy::shadow_reuse,
-//     clippy::print_stdout,
-//     clippy::wildcard_enum_match_arm,
-//     clippy::else_if_without_else,
-//     clippy::std_instead_of_core,
-//     clippy::question_mark,
-//     clippy::question_mark_used,
-//     clippy::min_ident_chars,
-//     clippy::inline_always,
-//     clippy::missing_inline_in_public_items
-// )]
-
 use std::{
     cmp, fs,
     io::{self, Error, Write},
     ops::Index,
-    path,
 };
 
 use crate::{
     editor::{Position, SearchDirection},
     filetype::FileType,
-    row::{self, Row},
+    row::Row,
 };
 
 #[derive(Debug, Default)]
@@ -41,19 +21,10 @@ pub struct Document {
 impl Document {
     #[inline]
     pub fn open(filename: &str) -> Result<Self, Error> {
-        // let filename = path::Path::new(filename);
         let contents = fs::read_to_string(filename)?;
-        // let filename = filename
-        //     .file_name()
-        //     .map(|s| s.to_string_lossy().into_owned());
         let filetype = FileType::from(filename);
-        // let mut start_with_comment = false;
         let mut rows = Vec::new();
         for value in contents.lines() {
-            // let mut row = Row::from(value);
-            // start_with_comment =
-            //     row.highlight(filetype.highlightling_options(), None, start_with_comment);
-            // rows.push(row);
             rows.push(Row::from(value));
         }
         Ok(Self {
@@ -130,7 +101,6 @@ impl Document {
             #[allow(clippy::arithmetic_side_effects)]
             self.rows.insert(at.y() + 1, next_row);
         }
-        // self.highlight(None);
         self.unhighlight_rows(at.y());
     }
 
@@ -149,7 +119,6 @@ impl Document {
             let row = &mut self.rows[at.y()];
             row.insert(at.x(), c);
         }
-        // self.highlight(None);
         self.unhighlight_rows(at.y());
     }
 
@@ -171,7 +140,6 @@ impl Document {
             let row = &mut self.rows[at.y()];
             row.delete(at.x());
         }
-        // self.highlight(None);
         self.unhighlight_rows(at.y());
     }
 
@@ -179,17 +147,10 @@ impl Document {
         #[allow(clippy::pattern_type_mismatch)]
         if let Some(filename) = &self.filename {
             let mut file = fs::File::create(filename)?;
-            // for row in self.rows.iter_mut().filter(|r| r.is_modified()) {
-            // let mut start_with_comment = false;
             self.filetype = FileType::from(filename);
             for row in &mut self.rows {
                 file.write_all(row.as_bytes())?;
                 file.write_all(b"\n")?;
-                // start_with_comment = row.highlight(
-                //     self.filetype.highlightling_options(),
-                //     None,
-                //     start_with_comment,
-                // );
             }
             self.dirty = false;
         }
