@@ -240,104 +240,21 @@ impl Row {
     }
 
     pub fn highlight(&mut self, opts: &HighlightingOptions, word: Option<&str>) {
-        let mut search_index = 0;
-        let mut matches = HashSet::new();
-        if let Some(word) = word {
-            let word_len = word.graphemes(true).count();
-            while let Some(search_match) = self.find(word, search_index, SearchDirection::Forward) {
-                matches.insert(search_match);
-                if let Some(next_index) = search_match.checked_add(word_len) {
-                    search_index = next_index;
-                } else {
-                    break;
-                }
-            }
-        }
-
-        // let chars: Vec<char> = self.content.chars().collect();
+        self.highlighting.clear();
         let chars: Vec<char> = self.content.chars().collect();
-        let mut highlight_result = Vec::new();
-        let mut prev_is_separtor = true;
-        let mut in_string = false;
         let mut index = 0;
         while let Some(c) = chars.get(index) {
-            if let Some(word) = word {
-                if matches.contains(&index) {
-                    for _ in word.graphemes(true) {
-                        index += 1;
-                        highlight_result.push(HighlightType::Match);
-                    }
-                    continue;
-                }
-            }
-
-            let previous_highlight = if index > 0 {
-                #[allow(clippy::arithmetic_side_effects)]
-                highlight_result.get(index - 1).unwrap_or_default()
-            } else {
-                &HighlightType::None
-            };
-
-            if opts.characters() && !in_string && *c == '\'' {
-                prev_is_separtor = true;
-                if let Some(next_char) = chars.get(index.saturating_add(1)) {
-                    let closing_index = if *next_char == '\\' {
-                        index.saturating_add(3)
-                    } else {
-                        index.saturating_add(2)
-                    };
-                    if let Some(closing_char) = chars.get(closing_index) {
-                        if *closing_char == '\'' {
-                            #[allow(clippy::mut_range_bound)]
-                            for _ in index..=closing_index {
-                                highlight_result.push(HighlightType::Character);
-                                index += 1; // range bound keep unchanged
-                            }
-                            continue;
-                        }
-                    }
-                }
-            }
-
-            if opts.strings() {
-                if in_string {
-                    highlight_result.push(HighlightType::String);
-                    if *c == '\\' && index < self.len().saturating_sub(1) {
-                        highlight_result.push(HighlightType::String);
-                        index += 1;
-                    } else if *c == '"' {
-                        in_string = false;
-                        prev_is_separtor = true;
-                    } else {
-                        prev_is_separtor = false;
-                    }
-                    index += 1;
-                    continue;
-                } else if prev_is_separtor && *c == '"' {
-                    highlight_result.push(HighlightType::String);
-                    in_string = true;
-                    prev_is_separtor = true;
-                    index += 1;
-                    continue;
-                }
-            }
-
-            if opts.numbers()
-                && ((c.is_ascii_digit()
-                    && (prev_is_separtor || *previous_highlight == HighlightType::Number))
-                    || (*c == '.' && *previous_highlight == HighlightType::Number))
+            if self.highlight_char(&mut index, opts, *c, &chars)
+                || self.highlight_comment(&mut index, opts, *c, &chars)
+                || self.highlight_string(&mut index, opts, *c, &chars)
+                || self.highlight_number(&mut index, opts, *c, &chars)
             {
-                highlight_result.push(HighlightType::Number);
-                prev_is_separtor = false;
-                index += 1;
                 continue;
             }
-
-            highlight_result.push(HighlightType::None);
-            prev_is_separtor = c.is_ascii_punctuation() || c.is_ascii_whitespace();
+            self.highlighting.push(HighlightType::None);
             index += 1;
         }
-        self.highlighting = highlight_result;
+        self.highlight_match(word);
     }
 }
 
@@ -396,7 +313,7 @@ impl Row {
     fn highlight_comment(
         &mut self,
         index: &mut usize,
-        opts: HighlightingOptions,
+        opts: &HighlightingOptions,
         c: char,
         chars: &[char],
     ) -> bool {
@@ -417,20 +334,22 @@ impl Row {
     fn highlight_string(
         &mut self,
         index: &mut usize,
-        opts: HighlightingOptions,
+        opts: &HighlightingOptions,
         c: char,
         chars: &[char],
     ) -> bool {
         if opts.strings() && c == '"' {
             *index += 1;
             while let Some(next_char) = chars.get(*index) {
-                if *next_char == '"' {
+                if *next_char != '"' {
+                    self.highlighting.push(HighlightType::String);
+                    *index += 1;
+                } else {
                     break;
                 }
-                self.highlighting.push(HighlightType::String);
-                *index += 1;
             }
-            self.highlighting.push(HighlightType::String);
+            self.highlighting.push(HighlightType::String); // current char
+            self.highlighting.push(HighlightType::String); // next char: '"'
             *index += 1;
             return true;
         }
@@ -440,7 +359,7 @@ impl Row {
     fn highlight_number(
         &mut self,
         index: &mut usize,
-        opts: HighlightingOptions,
+        opts: &HighlightingOptions,
         c: char,
         chars: &[char],
     ) -> bool {
@@ -461,7 +380,6 @@ impl Row {
                 }
             }
             self.highlighting.push(HighlightType::Number);
-            *index += 1;
             return true;
         }
         false
