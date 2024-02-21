@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::io;
 
 use notepad::editor;
 
@@ -13,18 +13,23 @@ use notepad::editor;
 //     offset: Position,
 // }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), io::Error> {
     let mut editor = editor::Editor::default();
-    editor.run()?;
+    editor.run()
 
-    // let mut x = MyTest {
-    //     offset: Position { x: 0, y: 0 },
-    // };
-    // let offset = &mut x.offset;
-    // offset.x = 10;
-    // offset.y = 100;
+    // let content = fs::read_to_string("cano.txt").unwrap_or_default();
+    // let chars: Vec<char> = content.chars().collect();
+    // let s_: Vec<&str> = content.graphemes(true).collect();
+    // println!("{:?}", chars);
+    // println!("{:?}", s_);
+    // assert_eq!(chars.len(), s_.len());
 
-    // println!("{:?}", x);
+    // let mut start = 0;
+    // let end = 10;
+    // for x in start..=end {
+    //     println!("{}", x);
+    //     start += 1;
+    // }
 
-    Ok(())
+    // Ok(())
 }
